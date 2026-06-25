@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Система Геймификации</title>
+  <meta name="theme-color" content="#020617" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/9438/9438165.png" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --app-bg: #020617;
+      --app-bg2: #020617;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-soft-20: rgba(99,102,241,0.20);
+      --accent-soft-30: rgba(99,102,241,0.30);
+      --accent-border-50: rgba(99,102,241,0.50);
+      --accent-border-60: rgba(99,102,241,0.60);
+      --accent-text: #a5b4fc;
+      --radius: 1rem;
+      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --font-scale: 1;
+      --text-stroke: none;
+      --text-stroke-color: #000000;
+      --text-stroke-width: 1px;
+    }
+
+    /* Обводка текста */
+    body.text-stroke-enabled {
+      -webkit-text-stroke: var(--text-stroke-width) var(--text-stroke-color);
+      text-stroke: var(--text-stroke-width) var(--text-stroke-color);
+      paint-order: stroke fill;
+    }
+
+    /* Масштабирование текста без изменения размеров элементов */
+    body { font-size: calc(1rem * var(--font-scale)); }
+    .text-xs { font-size: calc(0.75rem * var(--font-scale)) !important; }
+    .text-sm { font-size: calc(0.875rem * var(--font-scale)) !important; }
+    .text-base { font-size: calc(1rem * var(--font-scale)) !important; }
+    .text-lg { font-size: calc(1.125rem * var(--font-scale)) !important; }
+    .text-xl { font-size: calc(1.25rem * var(--font-scale)) !important; }
+    .text-2xl { font-size: calc(1.5rem * var(--font-scale)) !important; }
+    .text-3xl { font-size: calc(1.875rem * var(--font-scale)) !important; }
+
+    /* nicer number inputs */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+
+    body { background: var(--app-bg) !important; font-family: var(--font); }
+    body[data-bg-style="gradient"] {
+      background:
+        radial-gradient(1100px 700px at 15% -10%, var(--accent-soft-20), rgba(0,0,0,0) 55%),
+        radial-gradient(900px 600px at 120% 10%, rgba(34,211,238,0.12), rgba(0,0,0,0) 55%),
+        linear-gradient(180deg, var(--app-bg), var(--app-bg2)) !important;
+    }
+
+    /* unified radius for main cards */
+    .app-card { border-radius: var(--radius) !important; }
+
+    /* density */
+    body.density-compact .section-pad { padding: 0.875rem !important; }
+    body.density-compact .task-row { padding: 0.75rem !important; }
+    body.density-compact .shop-card { padding: 0.875rem !important; }
+    body.density-compact .tight-gap { gap: 0.5rem !important; }
+
+    /* Accent overrides (Tailwind class names) */
+    .bg-indigo-500 { background-color: var(--accent) !important; }
+    .hover\:bg-indigo-400:hover { background-color: var(--accent-hover) !important; }
+    .text-indigo-400 { color: var(--accent-text) !important; }
+    .bg-indigo-500\/20 { background-color: var(--accent-soft-20) !important; }
+    .bg-indigo-500\/30 { background-color: var(--accent-soft-30) !important; }
+    .border-indigo-500\/50 { border-color: var(--accent-border-50) !important; }
+    .border-indigo-500\/60 { border-color: var(--accent-border-60) !important; }
+    .focus\:ring-indigo-500:focus { --tw-ring-color: var(--accent) !important; }
+    .accent-indigo-500 { accent-color: var(--accent) !important; }
+
+    /* Make “disabled” settings sections look disabled */
+    .is-disabled { opacity: 0.55; pointer-events: none; filter: grayscale(0.1); }
+
+    /* Background image layer */
+    #bgImageLayer {
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      pointer-events: none;
+    }
+    #bgImageOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100">
+  <!-- Background image layers -->
+  <div id="bgImageLayer"></div>
+  <div id="bgImageOverlay"></div>
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 id="appTitleHeading" class="text-2xl sm:text-3xl font-semibold tracking-tight">Система Геймификации</h1>
+        <div class="mt-4 flex flex-wrap gap-2 tight-gap">
+          <button id="tabTasks" class="rounded-xl px-4 py-2 text-sm font-medium transition-colors bg-indigo-500 text-white">📋 Задачи</button>
+          <button id="tabShop" class="rounded-xl px-4 py-2 text-sm font-medium transition-colors bg-slate-900 text-slate-300 hover:bg-slate-800">🛒 Магазин</button>
+          <button id="tabSettings" class="rounded-xl px-4 py-2 text-sm font-medium transition-colors bg-slate-900 text-slate-300 hover:bg-slate-800">⚙️ Настройки</button>
+        </div>
+      </div>
+
+      <section class="w-full sm:w-auto rounded-2xl border border-slate-800 bg-slate-900/40 p-4 app-card section-pad">
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="text-sm text-slate-300">Баланс поинтов</div>
+            <div class="flex items-baseline gap-2">
+              <div id="pointsDisplay" class="text-3xl font-bold tabular-nums">0</div>
+              <div id="pointsUnitLabel" class="text-slate-400 text-sm">pts</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="decPointsBtn" class="inline-flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Уменьшить на 1">−1</button>
+            <button id="incPointsBtn" class="inline-flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" title="Увеличить на 1">+1</button>
+          </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+          <label class="block">
+            <span class="text-xs text-slate-400">Изменить вручную</span>
+            <input id="pointsInput" type="number" inputmode="numeric" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Например, 120" />
+          </label>
+          <button id="setPointsBtn" class="self-end rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">Установить</button>
+        </div>
+
+        <div class="mt-3 text-xs text-slate-400 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div id="statsLine" class="truncate">—</div>
+            <div id="balanceUpdatedLine" class="truncate text-slate-500"></div>
+          </div>
+          <button id="resetBtn" class="shrink-0 rounded-lg border border-slate-800 bg-slate-900 px-2 py-1 hover:bg-slate-800">Сброс</button>
+        </div>
+      </section>
+    </header>
+
+    <main class="mt-8">
+      <!-- Секция ЗАДАЧИ -->
+      <section id="tasksSection" class="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5 app-card section-pad">
+        <h2 class="text-lg font-semibold">Добавить дело</h2>
+        <form id="addForm" class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_140px_140px_auto] gap-3">
+          <label class="block">
+            <span class="text-xs text-slate-400">Название</span>
+            <input id="taskTitle" type="text" maxlength="120" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Например: 30 минут спорта" required />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400">Награда (поинты)</span>
+            <input id="taskReward" type="number" inputmode="numeric" min="0" step="1" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="10" value="10" required />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400">Тип</span>
+            <select id="taskType" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="single">Обычная</option>
+              <option value="multi">Многоразовая</option>
+            </select>
+          </label>
+          <button class="sm:self-end rounded-xl bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">Добавить</button>
+        </form>
+
+        <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button id="filterAll" class="filterBtn rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800" data-filter="all">Все</button>
+            <button id="filterActive" class="filterBtn rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800" data-filter="active">Активные</button>
+            <button id="filterDone" class="filterBtn rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800" data-filter="done">Выполненные</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="clearDoneBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Удалить выполненные</button>
+          </div>
+        </div>
+
+        <div id="tasksList" class="mt-4 space-y-2"></div>
+        <div id="emptyState" class="mt-6 hidden rounded-xl border border-dashed border-slate-800 bg-slate-950/20 p-6 text-center app-card">
+          <div class="text-slate-200 font-medium">Пока нет задач</div>
+          <div class="text-slate-400 text-sm mt-1">Добавь первое дело и назначь награду в поинтах.</div>
+        </div>
+      </section>
+
+      <!-- Секция МАГАЗИН (скрыта по умолчанию) -->
+      <section id="shopSection" class="hidden rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5 app-card section-pad">
+        <h2 class="text-lg font-semibold">Магазин наград</h2>
+        <p class="text-sm text-slate-400 mt-1">Трать заработанные поинты на приятные вещи.</p>
+
+        <form id="addShopItemForm" class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_120px_140px_auto] gap-3">
+          <label class="block">
+            <span class="text-xs text-slate-400">Что купить?</span>
+            <input id="shopItemTitle" type="text" maxlength="100" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Пицца, игра..." required />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400">Цена</span>
+            <input id="shopItemPrice" type="number" min="1" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="50" required />
+          </label>
+          <label class="block">
+            <span class="text-xs text-slate-400">Тип</span>
+            <select id="shopItemType" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="multi">Многоразовый</option>
+              <option value="single">Одноразовый</option>
+            </select>
+          </label>
+          <button class="sm:self-end rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">Добавить</button>
+        </form>
+
+        <div id="shopItemsList" class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+
+        <div id="shopEmptyState" class="mt-6 hidden rounded-xl border border-dashed border-slate-800 bg-slate-950/20 p-6 text-center app-card">
+          <div class="text-slate-200 font-medium">Магазин пуст</div>
+          <div class="text-slate-400 text-sm mt-1">Добавь награду, которую хочешь себе позволить.</div>
+        </div>
+      </section>
+
+      <!-- Секция НАСТРОЙКИ -->
+      <section id="settingsSection" class="hidden space-y-6">
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5 app-card section-pad">
+          <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/30 p-4 app-card" id="customizationCard">
+            <div class="text-sm text-slate-300">🎨 Кастомизация</div>
+            <p class="mt-1 text-xs text-slate-400">Настрой приложение под себя: цвета, шрифт, подтверждения, звук.</p>
+
+            <div class="mt-3 space-y-3">
+              <label class="block">
+                <span class="text-xs text-slate-400">Название приложения</span>
+                <input id="settingsAppTitle" type="text" maxlength="40" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Например: Мои дела" />
+              </label>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="text-xs text-slate-400">Акцент</span>
+                  <input id="settingsAccent" type="color" class="mt-1 h-10 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-2 py-2" />
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-400">Фон</span>
+                  <input id="settingsBg" type="color" class="mt-1 h-10 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-2 py-2" />
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="text-xs text-slate-400">Стиль фона</span>
+                  <select id="settingsBgStyle" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="solid">Однотонный</option>
+                    <option value="gradient">Градиент</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-400">Скругление</span>
+                  <select id="settingsRadius" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="lg">Лёгкое</option>
+                    <option value="xl">Среднее</option>
+                    <option value="2xl">Сильное</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="block">
+                  <span class="text-xs text-slate-400">Плотность</span>
+                  <select id="settingsDensity" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="comfortable">Обычная</option>
+                    <option value="compact">Компактная</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="text-xs text-slate-400">Шрифт</span>
+                  <select id="settingsFont" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="system">Системный</option>
+                    <option value="mono">Моно</option>
+                    <option value="rounded">Rounded</option>
+                    <option value="custom">Свой шрифт</option>
+                  </select>
+                </label>
+              </div>
+
+              <!-- Custom Font Upload -->
+              <div id="customFontSection" class="hidden">
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+                  <span class="text-sm text-slate-300 truncate" id="fontName">Стандартный шрифт</span>
+                  <button id="previewFontBtn" class="shrink-0 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700">Пример</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <button id="uploadFontBtn" class="rounded-xl border border-indigo-500/50 bg-indigo-500/20 px-3 py-2 text-sm text-indigo-200 hover:bg-indigo-500/30">Загрузить шрифт</button>
+                  <button id="resetFontBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Сбросить</button>
+                </div>
+                <input id="fontFile" class="hidden" type="file" accept=".woff,.woff2,.ttf,.otf" />
+                <p class="mt-2 text-xs text-slate-400">Поддерживаются WOFF, WOFF2, TTF, OTF. Макс. 4 МБ.</p>
+              </div>
+
+              <label class="block">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-400">Размер шрифта</span>
+                  <span class="text-xs text-slate-500"><span id="fontSizePct">100</span>%</span>
+                </div>
+                <input id="settingsFontSize" type="range" min="75" max="150" step="5" value="100" class="mt-1 w-full" />
+              </label>
+
+              <label class="block">
+                <span class="text-xs text-slate-400">Единица поинтов</span>
+                <input id="settingsUnit" type="text" maxlength="8" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="pts / XP / ⭐" />
+              </label>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsShowStats" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Статистика
+                </label>
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsShowTips" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Подсказки
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsAllowNegative" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Минус-поинты
+                </label>
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsVibrate" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Вибрация
+                </label>
+              </div>
+
+              <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input id="settingsSoundsEnabled" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                    Звуки
+                  </label>
+                  <div class="text-xs text-slate-400"><span id="volumePct">70</span>%</div>
+                </div>
+                <input id="settingsVolume" type="range" min="0" max="1" step="0.01" class="mt-2 w-full" />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsConfirmBuy" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Подтв. покупку
+                </label>
+                <label class="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm">
+                  <input id="settingsConfirmDelete" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                  Подтв. удаление
+                </label>
+              </div>
+
+              <!-- Обводка текста -->
+              <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <label class="flex items-center gap-2 text-sm">
+                    <input id="settingsTextStroke" type="checkbox" class="h-4 w-4 accent-indigo-500" />
+                    Обводка текста
+                  </label>
+                </div>
+                <div id="textStrokeOptions" class="mt-2 space-y-2 hidden">
+                  <div class="grid grid-cols-2 gap-2">
+                    <label class="block">
+                      <span class="text-xs text-slate-400">Цвет обводки</span>
+                      <input id="settingsStrokeColor" type="color" value="#000000" class="mt-1 h-8 w-full rounded-lg border border-slate-800 bg-slate-900/40 px-1" />
+                    </label>
+                    <label class="block">
+                      <span class="text-xs text-slate-400">Толщина</span>
+                      <div class="flex items-center gap-2">
+                        <input id="settingsStrokeWidth" type="range" min="0.5" max="3" step="0.5" value="1" class="mt-1 flex-1" />
+                        <span id="strokeWidthValue" class="text-xs text-slate-500 w-8">1px</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <button id="resetSettingsBtn" class="w-full rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Сбросить настройки</button>
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/30 p-4 app-card" id="bgImageCard">
+            <div class="text-sm text-slate-300">🖼️ Фоновое изображение</div>
+            <p class="mt-1 text-xs text-slate-400">Загрузи свою фотографию на фон приложения</p>
+
+            <div class="mt-3 space-y-3">
+              <div id="bgImagePreview" class="hidden relative w-full h-24 rounded-lg overflow-hidden border border-slate-700">
+                <img id="bgImageThumb" class="w-full h-full object-cover" src="" alt="Фон" />
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                  <span class="text-xs text-white/80">Текущий фон</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button id="uploadBgImageBtn" type="button" class="rounded-xl border border-indigo-500/50 bg-indigo-500/20 px-3 py-2 text-sm text-indigo-200 hover:bg-indigo-500/30">Загрузить</button>
+                <button id="resetBgImageBtn" type="button" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Сбросить</button>
+              </div>
+              <input id="bgImageFile" class="hidden" type="file" accept="image/*" />
+
+              <label class="block">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-400">Затемнение</span>
+                  <span class="text-xs text-slate-500"><span id="bgDimPct">50</span>%</span>
+                </div>
+                <input id="settingsBgDim" type="range" min="0" max="0.9" step="0.05" value="0.5" class="mt-1 w-full" />
+              </label>
+
+              <label class="block">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs text-slate-400">Размытие</span>
+                  <span class="text-xs text-slate-500"><span id="bgBlurPx">0</span>px</span>
+                </div>
+                <input id="settingsBgBlur" type="range" min="0" max="20" step="1" value="0" class="mt-1 w-full" />
+              </label>
+            </div>
+
+            <p class="mt-3 text-xs text-slate-400">Поддерживаются JPG, PNG, WebP. Макс. 5 МБ.</p>
+          </div>
+
+          <div class="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-4 app-card" id="taskSoundCard">
+              <div class="text-sm text-slate-300">🔊 Звук выполнения</div>
+              <p class="mt-1 text-xs text-slate-400">Выбери свой звук для выполнения задачи</p>
+
+              <div class="mt-3 space-y-2">
+                <div id="currentSoundInfo" class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+                  <span class="text-sm text-slate-300 truncate" id="soundName">Стандартный звук</span>
+                  <button id="previewSoundBtn" class="shrink-0 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700">▶ Тест</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="uploadSoundBtn" class="rounded-xl border border-indigo-500/50 bg-indigo-500/20 px-3 py-2 text-sm text-indigo-200 hover:bg-indigo-500/30">Загрузить</button>
+                  <button id="resetSoundBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Сбросить</button>
+                </div>
+                <input id="soundFile" class="hidden" type="file" accept="audio/*" />
+              </div>
+
+              <p class="mt-3 text-xs text-slate-400">Поддерживаются MP3, WAV, OGG и другие форматы. Макс. 2 МБ.</p>
+            </div>
+
+            <div class="rounded-xl border border-slate-800 bg-slate-950/30 p-4 app-card" id="shopSoundCard">
+              <div class="text-sm text-slate-300">🛍️ Звук покупки</div>
+              <p class="mt-1 text-xs text-slate-400">Звук при трате поинтов в магазине</p>
+
+              <div class="mt-3 space-y-2">
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2">
+                  <span class="text-sm text-slate-300 truncate" id="shopSoundName">Стандартный звук</span>
+                  <button id="previewShopSoundBtn" class="shrink-0 rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs hover:bg-slate-700">▶ Тест</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="uploadShopSoundBtn" class="rounded-xl border border-indigo-500/50 bg-indigo-500/20 px-3 py-2 text-sm text-indigo-200 hover:bg-indigo-500/30">Загрузить</button>
+                  <button id="resetShopSoundBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Сброс</button>
+                </div>
+                <input id="shopSoundFile" class="hidden" type="file" accept="audio/*" />
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/30 p-4 app-card">
+            <div class="text-sm text-slate-300">Быстрые действия</div>
+            <div class="mt-3 grid grid-cols-1 gap-2">
+              <button id="exportBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Экспорт JSON</button>
+              <button id="importBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Импорт JSON</button>
+              <input id="importFile" class="hidden" type="file" accept="application/json" />
+            </div>
+            <p class="mt-3 text-xs text-slate-400">Экспорт/импорт — чтобы перенести список дел между устройствами.</p>
+          </div>
+        </div>
+
+        <section id="tipsFooter" class="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5 app-card section-pad">
+          <div id="tipsToggle" class="flex items-center justify-between cursor-pointer group">
+            <h2 class="text-lg font-semibold group-hover:text-indigo-400 transition-colors">Подсказки</h2>
+            <span id="tipsArrow" class="text-slate-500 group-hover:text-indigo-400 transition-transform duration-200">▼</span>
+          </div>
+          <ul id="tipsContent" class="mt-3 space-y-2 text-sm text-slate-300 overflow-hidden transition-all duration-300">
+            <li class="flex gap-2"><span class="text-slate-500">•</span><span>Отмечай задачу выполненной — поинты добавятся.</span></li>
+            <li class="flex gap-2"><span class="text-slate-500">•</span><span>Снимай отметку выполнения — поинты спишутся обратно (если хватает).</span></li>
+            <li class="flex gap-2"><span class="text-slate-500">•</span><span>Баланс можно изменить вручную сверху.</span></li>
+            <li class="flex gap-2"><span class="text-slate-500">•</span><span>Все сохраняется в браузере (localStorage).</span></li>
+          </ul>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <!-- Edit modal -->
+  <div id="modalBackdrop" class="fixed inset-0 hidden items-center justify-center bg-black/60 p-4">
+    <div class="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-950 p-4 sm:p-5 shadow-xl app-card section-pad">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="text-lg font-semibold">Редактировать задачу</div>
+          <div class="text-sm text-slate-400">Меняй название и награду в поинтах.</div>
+        </div>
+        <button id="closeModalBtn" class="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800">Закрыть</button>
+      </div>
+
+      <form id="editForm" class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_140px_140px] gap-3">
+        <label class="block">
+          <span class="text-xs text-slate-400">Название</span>
+          <input id="editTitle" type="text" maxlength="120" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required />
+        </label>
+        <label class="block">
+          <span class="text-xs text-slate-400">Награда</span>
+          <input id="editReward" type="number" min="0" step="1" class="mt-1 w-full rounded-xl border border-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" required />
+        </label>
+        <label class="block">
+          <span class="text-xs text-slate-400">Тип</span>
+          <select id="editType" class="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900/40 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="single">Обычная</option>
+            <option value="multi">Многоразовая</option>
+          </select>
+        </label>
+        <div class="sm:col-span-3 flex items-center justify-end gap-2">
+          <button type="button" id="deleteFromModalBtn" class="rounded-xl border border-rose-900/60 bg-rose-950/40 px-4 py-2 text-sm text-rose-200 hover:bg-rose-950/70">Удалить</button>
+          <button class="rounded-xl bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 hidden max-w-[calc(100vw-2rem)] rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-slate-100 shadow-lg app-card"></div>
+
+  <script>
+    const STORAGE_KEY = 'todoPoints.v1';
+    const SETTINGS_KEY = 'todoPoints.settings.v1';
+
+    const SOUND_STORAGE_KEY = 'todoPoints.customSound';
+    const SOUND_NAME_KEY = 'todoPoints.customSoundName';
+    const SHOP_SOUND_STORAGE_KEY = 'todoPoints.shopCustomSound';
+    const SHOP_SOUND_NAME_KEY = 'todoPoints.shopCustomSoundName';
+
+    const BG_IMAGE_STORAGE_KEY = 'todoPoints.bgImage';
+    const BG_IMAGE_SETTINGS_KEY = 'todoPoints.bgImageSettings';
+    const CUSTOM_FONT_STORAGE_KEY = 'todoPoints.customFont';
+    const CUSTOM_FONT_NAME_KEY = 'todoPoints.customFontName';
+
+    // === Настройки кастомизации ===
+    const defaultSettings = {
+      appTitle: 'Система Геймификации',
+      pointsUnit: 'pts',
+      accent: '#6366f1',
+      bg: '#020617',
+      bg2: '#020617',
+      bgStyle: 'solid',
+      radius: '2xl',
+      density: 'comfortable',
+      font: 'system',
+      fontSize: 100,
+      soundsEnabled: true,
+      volume: 0.7,
+      vibrate: false,
+      allowNegative: true,
+      confirmBuy: true,
+      confirmDelete: true,
+      showStats: true,
+      showTipsBlock: true,
+      textStroke: false,
+      strokeColor: '#000000',
+      strokeWidth: 1
+    };
+
+    /** @type {typeof defaultSettings} */
+    let settings = { ...defaultSettings };
+
+    function clamp01(n) {
+      n = Number(n);
+      if (!Number.isFinite(n)) return 0;
+      return Math.max(0, Math.min(1, n));
+    }
+
+    function clampInt(n) {
+      if (!Number.isFinite(n)) return 0;
+      n = Math.trunc(n);
+      return n;
+    }
+
+    function sanitizeUnit(u) {
+      const s = String(u ?? '').trim();
+      return s ? s.slice(0, 8) : 'pts';
+    }
+
+    function hexToRgb(hex) {
+      const h = String(hex || '').replace('#', '').trim();
+      if (![3, 6].includes(h.length)) return null;
+      const full = h.length === 3 ? h.split('').map(ch => ch + ch).join('') : h;
+      const n = parseInt(full, 16);
+      if (!Number.isFinite(n)) return null;
+      return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    }
+
+    function rgbToHex(r, g, b) {
+      const to = (x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0');
+      return `#${to(r)}${to(g)}${to(b)}`;
+    }
+
+    function mixHex(hexA, hexB, t) {
+      const a = hexToRgb(hexA);
+      const b = hexToRgb(hexB);
+      if (!a || !b) return hexA;
+      const k = Math.max(0, Math.min(1, Number(t)));
+      return rgbToHex(
+        a.r + (b.r - a.r) * k,
+        a.g + (b.g - a.g) * k,
+        a.b + (b.b - a.b) * k
+      );
+    }
+
+    function rgbaFromHex(hex, alpha) {
+      const rgb = hexToRgb(hex);
+      if (!rgb) return `rgba(99,102,241,${alpha})`;
+      return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+    }
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+
+        settings = {
+          ...defaultSettings,
+          ...parsed,
+          pointsUnit: sanitizeUnit(parsed.pointsUnit ?? defaultSettings.pointsUnit),
+          volume: clamp01(parsed.volume ?? defaultSettings.volume)
+        };
+      } catch (e) {
+        console.warn('Failed to load settings', e);
+      }
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch (e) {
+        console.warn('Failed to save settings', e);
+      }
+    }
+
+    function applySettings() {
+      // computed accent variables for better compatibility than color-mix
+      const accent = settings.accent || defaultSettings.accent;
+      const accentHover = mixHex(accent, '#ffffff', 0.18);
+      const accentText = mixHex(accent, '#ffffff', 0.35);
+
+      document.documentElement.style.setProperty('--accent', accent);
+      document.documentElement.style.setProperty('--accent-hover', accentHover);
+      document.documentElement.style.setProperty('--accent-text', accentText);
+      document.documentElement.style.setProperty('--accent-soft-20', rgbaFromHex(accent, 0.20));
+      document.documentElement.style.setProperty('--accent-soft-30', rgbaFromHex(accent, 0.30));
+      document.documentElement.style.setProperty('--accent-border-50', rgbaFromHex(accent, 0.50));
+      document.documentElement.style.setProperty('--accent-border-60', rgbaFromHex(accent, 0.60));
+
+      const bg = settings.bg || defaultSettings.bg;
+      const bg2 = settings.bg2 || bg;
+      document.documentElement.style.setProperty('--app-bg', bg);
+      document.documentElement.style.setProperty('--app-bg2', bg2);
+
+      // radius
+      const radiusMap = { lg: '0.75rem', xl: '0.9rem', '2xl': '1rem' };
+      document.documentElement.style.setProperty('--radius', radiusMap[settings.radius] || radiusMap['2xl']);
+
+      // font
+      const fontMap = {
+        system: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
+        mono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        rounded: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial',
+        custom: 'CustomUserFont, ui-sans-serif, system-ui'
+      };
+      document.documentElement.style.setProperty('--font', fontMap[settings.font] || fontMap.system);
+
+      // Если выбран кастомный шрифт, убеждаемся, что @font-face добавлен
+      if (settings.font === 'custom') {
+        applyCustomFont();
+      }
+
+      // font size (масштабирование только текста, не всей страницы)
+      const fontSize = Math.max(75, Math.min(150, Number(settings.fontSize) || 100));
+      const fontScale = fontSize / 100;
+      document.documentElement.style.setProperty('--font-scale', String(fontScale));
+      const fontSizePct = document.getElementById('fontSizePct');
+      if (fontSizePct) fontSizePct.textContent = String(fontSize);
+
+      // bg style
+      document.body.dataset.bgStyle = settings.bgStyle;
+
+      // density
+      document.body.classList.toggle('density-compact', settings.density === 'compact');
+
+      // title and units
+      const title = String(settings.appTitle || defaultSettings.appTitle).trim() || defaultSettings.appTitle;
+      document.getElementById('appTitleHeading').textContent = title;
+      document.title = title;
+
+      const unit = sanitizeUnit(settings.pointsUnit);
+      document.getElementById('pointsUnitLabel').textContent = unit;
+
+      // meta theme-color
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute('content', accent);
+
+      // show/hide stats line
+      document.getElementById('statsLine').style.display = settings.showStats ? '' : 'none';
+
+      // show/hide tips block
+      document.getElementById('tipsFooter').style.display = settings.showTipsBlock ? '' : 'none';
+
+      // sounds UI disabling
+      const taskSoundCard = document.getElementById('taskSoundCard');
+      const shopSoundCard = document.getElementById('shopSoundCard');
+      taskSoundCard.classList.toggle('is-disabled', !settings.soundsEnabled);
+      shopSoundCard.classList.toggle('is-disabled', !settings.soundsEnabled);
+
+      // volume label
+      const pct = Math.round(clamp01(settings.volume) * 100);
+      const pctEl = document.getElementById('volumePct');
+      if (pctEl) pctEl.textContent = String(pct);
+
+      // text stroke
+      document.body.classList.toggle('text-stroke-enabled', Boolean(settings.textStroke));
+      document.documentElement.style.setProperty('--text-stroke-color', settings.strokeColor || '#000000');
+      document.documentElement.style.setProperty('--text-stroke-width', (settings.strokeWidth || 1) + 'px');
+
+      // update stroke options visibility
+      const strokeOptions = document.getElementById('textStrokeOptions');
+      if (strokeOptions) {
+        strokeOptions.classList.toggle('hidden', !settings.textStroke);
+      }
+      const strokeWidthEl = document.getElementById('strokeWidthValue');
+      if (strokeWidthEl) {
+        strokeWidthEl.textContent = (settings.strokeWidth || 1) + 'px';
+      }
+    }
+
+    function unit() {
+      return sanitizeUnit(settings.pointsUnit);
+    }
+
+    // === Звуковые эффекты ===
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    let customSoundData = null; // Base64 данные пользовательского звука
+    let customSoundName = null;
+    let shopSoundData = null;
+    let shopSoundName = null;
+
+    // === Кастомный шрифт ===
+    let customFontData = null;
+    let customFontName = null;
+
+    // Загрузка кастомного шрифта из localStorage
+    function loadCustomFont() {
+      try {
+        customFontData = localStorage.getItem(CUSTOM_FONT_STORAGE_KEY);
+        customFontName = localStorage.getItem(CUSTOM_FONT_NAME_KEY);
+        applyCustomFont();
+        updateFontUI();
+      } catch (e) {
+        console.warn('Failed to load custom font', e);
+      }
+    }
+
+    // Сохранение кастомного шрифта
+    function saveCustomFont(base64Data, fileName) {
+      try {
+        localStorage.setItem(CUSTOM_FONT_STORAGE_KEY, base64Data);
+        localStorage.setItem(CUSTOM_FONT_NAME_KEY, fileName);
+        customFontData = base64Data;
+        customFontName = fileName;
+        applyCustomFont();
+        updateFontUI();
+        showToast(`Шрифт "${fileName}" установлен!`);
+      } catch (e) {
+        console.warn('Failed to save font', e);
+        showToast('Не удалось сохранить шрифт (слишком большой файл?)');
+      }
+    }
+
+    // Сброс на стандартный шрифт
+    function resetCustomFont() {
+      localStorage.removeItem(CUSTOM_FONT_STORAGE_KEY);
+      localStorage.removeItem(CUSTOM_FONT_NAME_KEY);
+      customFontData = null;
+      customFontName = null;
+      applyCustomFont();
+      updateFontUI();
+      showToast('Шрифт сброшен на стандартный');
+    }
+
+    // Применение кастомного шрифта
+    function applyCustomFont() {
+      if (settings.font === 'custom' && customFontData) {
+        // Создаем временный стиль для кастомного шрифта
+        const fontFace = `
+          @font-face {
+            font-family: 'CustomUserFont';
+            src: url(${customFontData});
+          }
+        `;
+        
+        // Удаляем старый стиль если есть
+        const oldStyle = document.getElementById('custom-font-style');
+        if (oldStyle) oldStyle.remove();
+        
+        // Добавляем новый стиль
+        const style = document.createElement('style');
+        style.id = 'custom-font-style';
+        style.textContent = fontFace;
+        document.head.appendChild(style);
+        
+        // Применяем шрифт к body
+        document.documentElement.style.setProperty('--font', 'CustomUserFont, ui-sans-serif, system-ui');
+      }
+    }
+
+    // Обновление UI настроек шрифта
+    function updateFontUI() {
+      const fontNameEl = document.getElementById('fontName');
+      if (fontNameEl) {
+        fontNameEl.textContent = customFontName || 'Стандартный шрифт';
+        fontNameEl.title = customFontName || 'Стандартный шрифт';
+      }
+      
+      // Показываем/скрываем секцию загрузки шрифта
+      const customFontSection = document.getElementById('customFontSection');
+      if (customFontSection) {
+        customFontSection.classList.toggle('hidden', settings.font !== 'custom');
+      }
+    }
+
+    // Обработка загрузки файла шрифта
+    function handleFontFileUpload(file) {
+      if (!file) return;
+
+      if (file.size > 4 * 1024 * 1024) {
+        showToast('Файл слишком большой (макс. 4 МБ)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Data = e.target.result;
+        saveCustomFont(base64Data, file.name);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function getAudioContext() {
+      if (!audioCtx) audioCtx = new AudioCtx();
+      return audioCtx;
+    }
+
+    // Загрузка пользовательского звука из localStorage
+    function loadCustomSound() {
+      try {
+        customSoundData = localStorage.getItem(SOUND_STORAGE_KEY);
+        customSoundName = localStorage.getItem(SOUND_NAME_KEY);
+
+        shopSoundData = localStorage.getItem(SHOP_SOUND_STORAGE_KEY);
+        shopSoundName = localStorage.getItem(SHOP_SOUND_NAME_KEY);
+
+        updateSoundUI();
+      } catch (e) {
+        console.warn('Failed to load custom sound', e);
+      }
+    }
+
+    // Сохранение пользовательского звука
+    function saveCustomSound(base64Data, fileName) {
+      try {
+        localStorage.setItem(SOUND_STORAGE_KEY, base64Data);
+        localStorage.setItem(SOUND_NAME_KEY, fileName);
+        customSoundData = base64Data;
+        customSoundName = fileName;
+        updateSoundUI();
+        showToast(`Звук "${fileName}" установлен!`);
+      } catch (e) {
+        console.warn('Failed to save sound', e);
+        showToast('Не удалось сохранить звук (слишком большой файл?)');
+      }
+    }
+
+    // Сброс на стандартный звук
+    function resetCustomSound() {
+      localStorage.removeItem(SOUND_STORAGE_KEY);
+      localStorage.removeItem(SOUND_NAME_KEY);
+      customSoundData = null;
+      customSoundName = null;
+      updateSoundUI();
+      showToast('Звук сброшен на стандартный');
+    }
+
+    function resetShopSound() {
+      localStorage.removeItem(SHOP_SOUND_STORAGE_KEY);
+      localStorage.removeItem(SHOP_SOUND_NAME_KEY);
+      shopSoundData = null;
+      shopSoundName = null;
+      updateSoundUI();
+      showToast('Звук магазина сброшен');
+    }
+
+    // Обновление UI настроек звука
+    function updateSoundUI() {
+      const soundNameEl = document.getElementById('soundName');
+      if (soundNameEl) {
+        soundNameEl.textContent = customSoundName || 'Стандартный звук';
+        soundNameEl.title = customSoundName || 'Стандартный звук';
+      }
+      const shopSoundNameEl = document.getElementById('shopSoundName');
+      if (shopSoundNameEl) {
+        shopSoundNameEl.textContent = shopSoundName || 'Стандартный звук';
+        shopSoundNameEl.title = shopSoundName || 'Стандартный звук';
+      }
+    }
+
+    // Воспроизведение пользовательского звука
+    function playCustomSound(data) {
+      return new Promise((resolve, reject) => {
+        if (!data) {
+          reject('No sound data');
+          return;
+        }
+        try {
+          const audio = new Audio(data);
+          audio.volume = clamp01(settings.volume);
+          audio.onended = resolve;
+          audio.onerror = reject;
+          audio.play().catch(reject);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    // Стандартный звук успеха (выполнение задачи)
+    function playDefaultSuccessSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const vol = clamp01(settings.volume);
+
+        // Создаём тона для приятного "дзинь"
+        const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5 (мажорный аккорд)
+
+        frequencies.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+
+          gain.gain.setValueAtTime(0, now + i * 0.08);
+          gain.gain.linearRampToValueAtTime(0.15 * vol, now + i * 0.08 + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.4);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+
+          osc.start(now + i * 0.08);
+          osc.stop(now + i * 0.08 + 0.5);
+        });
+      } catch (e) {
+        console.warn('Audio not supported', e);
+      }
+    }
+
+    function playDefaultShopSound() {
+      try {
+        const ctx = getAudioContext();
+        const now = ctx.currentTime;
+        const vol = clamp01(settings.volume);
+
+        // Более "денежный" звук
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
+        gain.gain.setValueAtTime(0.12 * vol, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(now + 0.3);
+      } catch (e) {}
+    }
+
+    // Звук успеха — пользовательский или стандартный
+    function playSuccessSound() {
+      if (!settings.soundsEnabled) return;
+      if (customSoundData) {
+        playCustomSound(customSoundData).catch(() => {
+          playDefaultSuccessSound();
+        });
+      } else {
+        playDefaultSuccessSound();
+      }
+    }
+
+    function playShopSuccessSound() {
+      if (!settings.soundsEnabled) return;
+      if (shopSoundData) {
+        playCustomSound(shopSoundData).catch(() => {
+          playDefaultShopSound();
+        });
+      } else {
+        playDefaultShopSound();
+      }
+    }
+
+    function vibrate(ms = 25) {
+      if (!settings.vibrate) return;
+      try {
+        if (navigator.vibrate) navigator.vibrate(ms);
+      } catch (e) {}
+    }
+
+    // === Фоновое изображение ===
+    let bgImageData = null;
+    let bgImageSettings = { dim: 0.5, blur: 0 };
+
+    function loadBgImage() {
+      try {
+        bgImageData = localStorage.getItem(BG_IMAGE_STORAGE_KEY);
+        const savedSettings = localStorage.getItem(BG_IMAGE_SETTINGS_KEY);
+        if (savedSettings) {
+          const parsed = JSON.parse(savedSettings);
+          bgImageSettings = { 
+            dim: clamp01(parsed.dim ?? 0.5), 
+            blur: Math.max(0, Math.min(20, Number(parsed.blur) || 0))
+          };
+        }
+        applyBgImage();
+        syncBgImageUI();
+      } catch (e) {
+        console.warn('Failed to load bg image', e);
+      }
+    }
+
+    function saveBgImage(base64Data) {
+      try {
+        localStorage.setItem(BG_IMAGE_STORAGE_KEY, base64Data);
+        bgImageData = base64Data;
+        applyBgImage();
+        syncBgImageUI();
+        showToast('Фон установлен!');
+      } catch (e) {
+        console.warn('Failed to save bg image', e);
+        showToast('Не удалось сохранить фон (слишком большой файл?)');
+      }
+    }
+
+    function saveBgImageSettings() {
+      try {
+        localStorage.setItem(BG_IMAGE_SETTINGS_KEY, JSON.stringify(bgImageSettings));
+      } catch (e) {}
+    }
+
+    function resetBgImage() {
+      localStorage.removeItem(BG_IMAGE_STORAGE_KEY);
+      localStorage.removeItem(BG_IMAGE_SETTINGS_KEY);
+      bgImageData = null;
+      bgImageSettings = { dim: 0.5, blur: 0 };
+      applyBgImage();
+      syncBgImageUI();
+      showToast('Фон сброшен');
+    }
+
+    function applyBgImage() {
+      const layer = document.getElementById('bgImageLayer');
+      const overlay = document.getElementById('bgImageOverlay');
+      
+      if (bgImageData) {
+        layer.style.backgroundImage = `url(${bgImageData})`;
+        layer.style.filter = `blur(${bgImageSettings.blur}px)`;
+        layer.style.display = 'block';
+        overlay.style.background = `rgba(0,0,0,${bgImageSettings.dim})`;
+        overlay.style.display = 'block';
+      } else {
+        layer.style.backgroundImage = '';
+        layer.style.display = 'none';
+        overlay.style.display = 'none';
+      }
+    }
+
+    function syncBgImageUI() {
+      const preview = els.bgImagePreview || document.getElementById('bgImagePreview');
+      const thumb = els.bgImageThumb || document.getElementById('bgImageThumb');
+      const dimSlider = els.settingsBgDim || document.getElementById('settingsBgDim');
+      const blurSlider = els.settingsBgBlur || document.getElementById('settingsBgBlur');
+      const dimPct = els.bgDimPct || document.getElementById('bgDimPct');
+      const blurPx = els.bgBlurPx || document.getElementById('bgBlurPx');
+
+      if (preview && thumb) {
+        if (bgImageData) {
+          preview.classList.remove('hidden');
+          thumb.src = bgImageData;
+        } else {
+          preview.classList.add('hidden');
+          thumb.src = '';
+        }
+      }
+
+      if (dimSlider) dimSlider.value = String(bgImageSettings.dim);
+      if (blurSlider) blurSlider.value = String(bgImageSettings.blur);
+      if (dimPct) dimPct.textContent = String(Math.round(bgImageSettings.dim * 100));
+      if (blurPx) blurPx.textContent = String(bgImageSettings.blur);
+    }
+
+    function handleBgImageUpload(file) {
+      if (!file) return;
+
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('Файл слишком большой (макс. 5 МБ)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        saveBgImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Обработка загрузки аудиофайла
+    function handleSoundFileUpload(file, isShop = false) {
+      if (!file) return;
+
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Файл слишком большой (макс. 2 МБ)');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64Data = e.target.result;
+        if (isShop) {
+          localStorage.setItem(SHOP_SOUND_STORAGE_KEY, base64Data);
+          localStorage.setItem(SHOP_SOUND_NAME_KEY, file.name);
+          shopSoundData = base64Data;
+          shopSoundName = file.name;
+          updateSoundUI();
+          showToast(`Звук покупки "${file.name}" установлен!`);
+        } else {
+          saveCustomSound(base64Data, file.name);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /** @type {{points:number, lastBalanceChangedAt:number|null, tasks:Array<{id:string,title:string,reward:number,type:string,done:boolean,createdAt:number,lastCompletedAt:number|null}>, shopItems:Array<{id:string,title:string,price:number,type:string,boughtCount:number}>}} */
+    let state = { points: 0, lastBalanceChangedAt: null, tasks: [], shopItems: [] };
+    let currentFilter = 'all';
+
+    const els = {
+      tipsFooter: document.getElementById('tipsFooter'),
+      tipsToggle: document.getElementById('tipsToggle'),
+      tipsContent: document.getElementById('tipsContent'),
+      tipsArrow: document.getElementById('tipsArrow'),
+      tabTasks: document.getElementById('tabTasks'),
+      tabShop: document.getElementById('tabShop'),
+      tabSettings: document.getElementById('tabSettings'),
+      tasksSection: document.getElementById('tasksSection'),
+      shopSection: document.getElementById('shopSection'),
+      settingsSection: document.getElementById('settingsSection'),
+
+      appTitleHeading: document.getElementById('appTitleHeading'),
+      pointsUnitLabel: document.getElementById('pointsUnitLabel'),
+
+      pointsDisplay: document.getElementById('pointsDisplay'),
+      pointsInput: document.getElementById('pointsInput'),
+      setPointsBtn: document.getElementById('setPointsBtn'),
+      incPointsBtn: document.getElementById('incPointsBtn'),
+      decPointsBtn: document.getElementById('decPointsBtn'),
+      statsLine: document.getElementById('statsLine'),
+      balanceUpdatedLine: document.getElementById('balanceUpdatedLine'),
+      resetBtn: document.getElementById('resetBtn'),
+
+      addForm: document.getElementById('addForm'),
+      taskTitle: document.getElementById('taskTitle'),
+      taskReward: document.getElementById('taskReward'),
+      taskType: document.getElementById('taskType'),
+      tasksList: document.getElementById('tasksList'),
+      emptyState: document.getElementById('emptyState'),
+
+      addShopItemForm: document.getElementById('addShopItemForm'),
+      shopItemTitle: document.getElementById('shopItemTitle'),
+      shopItemPrice: document.getElementById('shopItemPrice'),
+      shopItemType: document.getElementById('shopItemType'),
+      shopItemsList: document.getElementById('shopItemsList'),
+      shopEmptyState: document.getElementById('shopEmptyState'),
+
+      filterBtns: Array.from(document.querySelectorAll('.filterBtn')),
+      clearDoneBtn: document.getElementById('clearDoneBtn'),
+
+      modalBackdrop: document.getElementById('modalBackdrop'),
+      closeModalBtn: document.getElementById('closeModalBtn'),
+      editForm: document.getElementById('editForm'),
+      editTitle: document.getElementById('editTitle'),
+      editReward: document.getElementById('editReward'),
+      editType: document.getElementById('editType'),
+      deleteFromModalBtn: document.getElementById('deleteFromModalBtn'),
+
+      exportBtn: document.getElementById('exportBtn'),
+      importBtn: document.getElementById('importBtn'),
+      importFile: document.getElementById('importFile'),
+
+      // Settings
+      settingsAppTitle: document.getElementById('settingsAppTitle'),
+      settingsAccent: document.getElementById('settingsAccent'),
+      settingsBg: document.getElementById('settingsBg'),
+      settingsBgStyle: document.getElementById('settingsBgStyle'),
+      settingsRadius: document.getElementById('settingsRadius'),
+      settingsDensity: document.getElementById('settingsDensity'),
+      settingsFont: document.getElementById('settingsFont'),
+      settingsFontSize: document.getElementById('settingsFontSize'),
+      settingsUnit: document.getElementById('settingsUnit'),
+      settingsShowStats: document.getElementById('settingsShowStats'),
+      settingsShowTips: document.getElementById('settingsShowTips'),
+      settingsAllowNegative: document.getElementById('settingsAllowNegative'),
+      settingsVibrate: document.getElementById('settingsVibrate'),
+      settingsSoundsEnabled: document.getElementById('settingsSoundsEnabled'),
+      settingsVolume: document.getElementById('settingsVolume'),
+      settingsConfirmBuy: document.getElementById('settingsConfirmBuy'),
+      settingsConfirmDelete: document.getElementById('settingsConfirmDelete'),
+      resetSettingsBtn: document.getElementById('resetSettingsBtn'),
+
+      // Sound settings
+      soundName: document.getElementById('soundName'),
+      previewSoundBtn: document.getElementById('previewSoundBtn'),
+      uploadSoundBtn: document.getElementById('uploadSoundBtn'),
+      resetSoundBtn: document.getElementById('resetSoundBtn'),
+      soundFile: document.getElementById('soundFile'),
+
+      shopSoundName: document.getElementById('shopSoundName'),
+      previewShopSoundBtn: document.getElementById('previewShopSoundBtn'),
+      uploadShopSoundBtn: document.getElementById('uploadShopSoundBtn'),
+      resetShopSoundBtn: document.getElementById('resetShopSoundBtn'),
+      shopSoundFile: document.getElementById('shopSoundFile'),
+
+      toast: document.getElementById('toast'),
+
+      // Background image settings
+      uploadBgImageBtn: document.getElementById('uploadBgImageBtn'),
+      resetBgImageBtn: document.getElementById('resetBgImageBtn'),
+      bgImageFile: document.getElementById('bgImageFile'),
+      settingsBgDim: document.getElementById('settingsBgDim'),
+      settingsBgBlur: document.getElementById('settingsBgBlur'),
+
+      bgImagePreview: document.getElementById('bgImagePreview'),
+      bgImageThumb: document.getElementById('bgImageThumb'),
+      bgDimPct: document.getElementById('bgDimPct'),
+      bgBlurPx: document.getElementById('bgBlurPx'),
+    };
+
+    let editingTaskId = null;
+
+    function uid() {
+      return Math.random().toString(16).slice(2) + '-' + Date.now().toString(16);
+    }
+
+    function showToast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.remove('hidden');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => els.toast.classList.add('hidden'), 2200);
+    }
+
+    function sanitizePointsValue(v) {
+      const n = clampInt(Number(v));
+      if (settings.allowNegative) return n;
+      return Math.max(0, n);
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (typeof parsed?.points === 'number' && Array.isArray(parsed?.tasks)) {
+          state.points = sanitizePointsValue(parsed.points);
+          state.lastBalanceChangedAt = parsed.lastBalanceChangedAt ? clampInt(Number(parsed.lastBalanceChangedAt)) : null;
+          // миграция со старых версий: если времени нет, но данные есть — считаем, что баланс "изменён" при импорте/первой загрузке
+          if (!state.lastBalanceChangedAt && (state.points !== 0 || (parsed.shopItems?.length || 0) > 0 || (parsed.tasks?.length || 0) > 0)) {
+            state.lastBalanceChangedAt = Date.now();
+          }
+          state.tasks = parsed.tasks
+            .filter(t => t && typeof t.id === 'string')
+            .map(t => ({
+              id: String(t.id),
+              title: String(t.title ?? ''),
+              reward: clampInt(Number(t.reward ?? 0)),
+              type: String(t.type ?? 'single'),
+              done: Boolean(t.done),
+              createdAt: clampInt(Number(t.createdAt ?? Date.now())),
+              lastCompletedAt: t.lastCompletedAt ? clampInt(Number(t.lastCompletedAt)) : null
+            }));
+
+          state.shopItems = Array.isArray(parsed.shopItems)
+            ? parsed.shopItems.map(i => ({
+                id: String(i.id),
+                title: String(i.title ?? ''),
+                price: clampInt(Number(i.price ?? 0)),
+                type: String(i.type ?? 'multi'),
+                boughtCount: clampInt(Number(i.boughtCount ?? 0))
+              }))
+            : [];
+        }
+      } catch (e) {
+        console.warn('Failed to load state', e);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save state', e);
+      }
+    }
+
+    function touchBalanceChanged(ts = Date.now()) {
+      const n = clampInt(Number(ts));
+      state.lastBalanceChangedAt = n || Date.now();
+    }
+
+    function setPoints(value) {
+      state.points = sanitizePointsValue(value);
+      touchBalanceChanged();
+      saveState();
+      renderHeader();
+    }
+
+    function addPoints(delta) {
+      state.points = sanitizePointsValue(state.points + sanitizePointsValue(delta));
+      touchBalanceChanged();
+      saveState();
+      renderHeader();
+    }
+
+    function formatDate(ts) {
+      try {
+        const d = new Date(ts);
+        return d.toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+      } catch { return ''; }
+    }
+
+    function stats() {
+      const total = state.tasks.length;
+      const done = state.tasks.filter(t => t.done).length;
+      const active = total - done;
+      const remainingReward = state.tasks.filter(t => !t.done).reduce((s,t)=> s + t.reward, 0);
+      return { total, done, active, remainingReward };
+    }
+
+    function renderHeader() {
+      els.pointsDisplay.textContent = String(state.points);
+      // Only sync if not focused, so manual edits are not overwritten while typing
+      if (document.activeElement !== els.pointsInput) {
+        els.pointsInput.value = String(state.points);
+      }
+
+      const s = stats();
+      els.statsLine.textContent = `Задач: ${s.total} · Активных: ${s.active} · Выполнено: ${s.done} · Потенциал: +${s.remainingReward} ${unit()}`;
+
+      if (els.balanceUpdatedLine) {
+        els.balanceUpdatedLine.textContent = state.lastBalanceChangedAt
+          ? `Баланс изменён: ${formatDate(state.lastBalanceChangedAt)}`
+          : 'Баланс ещё не изменялся';
+      }
+
+      // filter buttons active state
+      els.filterBtns.forEach(btn => {
+        const active = btn.dataset.filter === currentFilter;
+        btn.classList.toggle('bg-indigo-500', active);
+        btn.classList.toggle('border-indigo-500/60', active);
+        btn.classList.toggle('text-white', active);
+        btn.classList.toggle('bg-slate-900', !active);
+      });
+
+      // unit label
+      els.pointsUnitLabel.textContent = unit();
+    }
+
+    function filteredTasks() {
+      // Сортировка: сначала многоразовые, потом по дате создания (новые сверху)
+      const tasks = [...state.tasks].sort((a, b) => {
+        // Многоразовые всегда выше одноразовых
+        if (a.type === 'multi' && b.type !== 'multi') return -1;
+        if (a.type !== 'multi' && b.type === 'multi') return 1;
+        // Внутри одного типа — по дате (новые сверху)
+        return b.createdAt - a.createdAt;
+      });
+      if (currentFilter === 'active') return tasks.filter(t => !t.done);
+      if (currentFilter === 'done') return tasks.filter(t => t.done);
+      return tasks;
+    }
+
+    function renderTasks() {
+      const tasks = filteredTasks();
+      els.tasksList.innerHTML = '';
+
+      if (state.tasks.length === 0) {
+        els.emptyState.classList.remove('hidden');
+      } else {
+        els.emptyState.classList.add('hidden');
+      }
+
+      if (tasks.length === 0 && state.tasks.length > 0) {
+        const div = document.createElement('div');
+        div.className = 'rounded-xl border border-slate-800 bg-slate-950/20 p-5 text-center text-slate-300 app-card';
+        div.innerHTML = '<div class="font-medium text-slate-200">Нет задач для этого фильтра</div><div class="text-sm text-slate-400 mt-1">Переключи фильтр выше.</div>';
+        els.tasksList.appendChild(div);
+        return;
+      }
+
+      for (const t of tasks) {
+        const row = document.createElement('div');
+        row.className = 'rounded-2xl border border-slate-800 bg-slate-950/30 p-3 sm:p-4 flex items-start gap-3 app-card task-row';
+
+        const left = document.createElement('div');
+        left.className = 'pt-1';
+        
+        if (t.type === 'multi') {
+          const btn = document.createElement('button');
+          btn.className = 'flex items-center justify-center h-6 w-6 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors';
+          btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" /></svg>';
+          btn.title = 'Выполнить (многоразовая)';
+          btn.onclick = () => toggleDone(t.id);
+          left.appendChild(btn);
+        } else {
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = t.done;
+          cb.className = 'h-5 w-5 accent-indigo-500 cursor-pointer';
+          cb.addEventListener('change', () => toggleDone(t.id));
+          left.appendChild(cb);
+        }
+
+        const mid = document.createElement('div');
+        mid.className = 'min-w-0 flex-1';
+
+        const title = document.createElement('div');
+        title.className = 'flex items-start justify-between gap-3';
+
+        const titleText = document.createElement('div');
+        titleText.className = 'min-w-0';
+        const lastCompletedInfo = (t.type === 'multi' && t.lastCompletedAt) 
+          ? `<span class="inline-flex items-center rounded-lg border border-emerald-800/50 bg-emerald-900/30 px-2 py-1 text-emerald-300">Последнее: ${formatDate(t.lastCompletedAt)}</span>` 
+          : '';
+        const typeLabel = t.type === 'multi' 
+          ? '<span class="inline-flex items-center rounded-lg border border-emerald-800/50 bg-emerald-900/30 px-2 py-1 text-emerald-300">♻ Многоразовая</span>' 
+          : '';
+        
+        titleText.innerHTML = `
+          <div class="font-medium ${t.done ? 'line-through text-slate-400' : 'text-slate-100'} break-words">${escapeHtml(t.title)}</div>
+          <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            <span class="inline-flex items-center rounded-lg border border-slate-800 bg-slate-900 px-2 py-1">Награда: <span class="ml-1 font-semibold text-slate-200 tabular-nums">${t.reward}</span> ${escapeHtml(unit())}</span>
+            ${typeLabel}
+            ${lastCompletedInfo}
+            <span class="hidden sm:inline">·</span>
+            <span class="tabular-nums">${formatDate(t.createdAt)}</span>
+          </div>
+        `;
+
+        const actions = document.createElement('div');
+        actions.className = 'shrink-0 flex items-center gap-2';
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-sm hover:bg-slate-800';
+        editBtn.textContent = 'Правка';
+        editBtn.addEventListener('click', () => openEdit(t.id));
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'rounded-xl border border-rose-900/60 bg-rose-950/30 px-3 py-2 text-sm text-rose-200 hover:bg-rose-950/60';
+        delBtn.textContent = 'Удалить';
+        delBtn.addEventListener('click', () => deleteTask(t.id));
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+
+        title.appendChild(titleText);
+        title.appendChild(actions);
+        mid.appendChild(title);
+
+        row.appendChild(left);
+        row.appendChild(mid);
+
+        els.tasksList.appendChild(row);
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderAll() {
+      renderHeader();
+      renderTasks();
+      renderShop();
+    }
+
+    function setTabButtonState(active) {
+      const base = "rounded-xl px-4 py-2 text-sm font-medium transition-colors";
+      const activeCls = base + " bg-indigo-500 text-white";
+      const idleCls = base + " bg-slate-900 text-slate-300 hover:bg-slate-800";
+      els.tabTasks.className = active === 'tasks' ? activeCls : idleCls;
+      els.tabShop.className = active === 'shop' ? activeCls : idleCls;
+      els.tabSettings.className = active === 'settings' ? activeCls : idleCls;
+    }
+
+    function switchTab(tab) {
+      // remember tab
+      try { localStorage.setItem('todoPoints.lastTab', tab); } catch (e) {}
+
+      els.tasksSection.classList.toggle('hidden', tab !== 'tasks');
+      els.shopSection.classList.toggle('hidden', tab !== 'shop');
+      els.settingsSection.classList.toggle('hidden', tab !== 'settings');
+
+      setTabButtonState(tab);
+
+      // when entering settings, ensure UI reflects current state (useful after imports)
+      if (tab === 'settings') {
+        syncSettingsUI();
+        updateFontUI();
+        syncBgImageUI();
+        updateSoundUI();
+      }
+    }
+
+    // === ЛОГИКА МАГАЗИНА ===
+    function addShopItem(title, price, type) {
+      const cleanTitle = String(title).trim();
+      const p = clampInt(Number(price));
+      if (!cleanTitle || p <= 0) {
+        showToast('Введите название и цену больше 0');
+        return;
+      }
+      state.shopItems.push({
+        id: uid(),
+        title: cleanTitle,
+        price: p,
+        type: type,
+        boughtCount: 0
+      });
+      saveState();
+      renderShop();
+      showToast(`Товар "${cleanTitle}" добавлен в магазин`);
+    }
+
+    function buyShopItem(id) {
+      const item = state.shopItems.find(i => i.id === id);
+      if (!item) return;
+
+      if (state.points < item.price) {
+        showToast(`Недостаточно поинтов! Нужно еще ${item.price - state.points} ${unit()}`);
+        return;
+      }
+
+      if (settings.confirmBuy) {
+        const ok = confirm(`Купить "${item.title}" за ${item.price} ${unit()}?`);
+        if (!ok) return;
+      }
+
+      addPoints(-item.price);
+      item.boughtCount++;
+
+      playShopSuccessSound();
+      vibrate(35);
+
+      if (item.type === 'single') {
+        state.shopItems = state.shopItems.filter(i => i.id !== id);
+        showToast('Куплено! Одноразовый товар удален.');
+      } else {
+        showToast('Куплено! Поздравляем!');
+      }
+
+      saveState();
+      renderAll();
+    }
+
+    function deleteShopItem(id) {
+      state.shopItems = state.shopItems.filter(i => i.id !== id);
+      saveState();
+      renderShop();
+      showToast('Товар удален из магазина.');
+    }
+
+    function renderShop() {
+      els.shopItemsList.innerHTML = '';
+      if (state.shopItems.length === 0) {
+        els.shopEmptyState.classList.remove('hidden');
+        return;
+      }
+      els.shopEmptyState.classList.add('hidden');
+
+      state.shopItems.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'rounded-2xl border border-slate-800 bg-slate-950/40 p-4 flex flex-col justify-between gap-4 app-card shop-card';
+
+        const typeLabel = item.type === 'single' ? 'Одноразовый' : 'Многоразовый';
+        const typeColor = item.type === 'single' ? 'text-amber-400' : 'text-emerald-400';
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-start justify-between gap-2">
+              <div class="font-semibold text-slate-100 break-words">${escapeHtml(item.title)}</div>
+              <button class="deleteItemBtn text-slate-500 hover:text-rose-500 transition-colors" aria-label="Удалить">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div class="mt-1 text-xs ${typeColor}">${typeLabel} ${item.boughtCount > 0 ? '· Куплено: ' + item.boughtCount : ''}</div>
+          </div>
+          <div class="flex items-center justify-between gap-3 mt-auto">
+            <div class="text-xl font-bold text-indigo-400 tabular-nums">${item.price} <span class="text-xs font-normal text-slate-500">${escapeHtml(unit())}</span></div>
+            <button class="buyItemBtn px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed">
+              Купить
+            </button>
+          </div>
+        `;
+
+        card.querySelector('.buyItemBtn').addEventListener('click', () => buyShopItem(item.id));
+        card.querySelector('.deleteItemBtn').addEventListener('click', () => deleteShopItem(item.id));
+
+        els.shopItemsList.appendChild(card);
+      });
+    }
+
+    function addTask(title, reward, type = 'single') {
+      const cleanTitle = String(title ?? '').trim();
+      const r = clampInt(Number(reward));
+      if (!cleanTitle) {
+        showToast('Введите название задачи.');
+        return;
+      }
+      if (r < 0) {
+        showToast('Награда не может быть отрицательной.');
+        return;
+      }
+
+      state.tasks.unshift({
+        id: uid(),
+        title: cleanTitle,
+        reward: r,
+        type: type,
+        done: false,
+        createdAt: Date.now(),
+        lastCompletedAt: null
+      });
+      saveState();
+      renderAll();
+      showToast(`Добавлено: “${cleanTitle}” (+${r} ${unit()})`);
+    }
+
+    function toggleDone(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+
+      if (t.type === 'multi') {
+        addPoints(t.reward);
+        t.lastCompletedAt = Date.now();
+        saveState();
+        renderAll();
+        playSuccessSound();
+        vibrate(25);
+        showToast(`Выполнено (многоразовая): +${t.reward} ${unit()}`);
+        return;
+      }
+
+      const nextDone = !t.done;
+      const delta = nextDone ? t.reward : -t.reward;
+
+      t.done = nextDone;
+      addPoints(delta);
+      saveState();
+      renderAll();
+
+      if (nextDone) {
+        playSuccessSound();
+        vibrate(25);
+      }
+
+      showToast(nextDone ? `Выполнено: +${t.reward} ${unit()}` : `Отменено: −${t.reward} ${unit()}`);
+    }
+
+    function deleteTask(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+
+      if (settings.confirmDelete) {
+        const ok = confirm(`Удалить задачу “${t.title}”?`);
+        if (!ok) {
+          renderAll();
+          return;
+        }
+      }
+
+      // If deleting done task, points stay as-is (simple mental model)
+      state.tasks = state.tasks.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+      showToast('Задача удалена.');
+
+      if (editingTaskId === id) closeModal();
+    }
+
+    function openEdit(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+      editingTaskId = id;
+      els.editTitle.value = t.title;
+      els.editReward.value = String(t.reward);
+      els.editType.value = t.type || 'single';
+      els.modalBackdrop.classList.remove('hidden');
+      els.modalBackdrop.classList.add('flex');
+      setTimeout(() => els.editTitle.focus(), 0);
+    }
+
+    function closeModal() {
+      editingTaskId = null;
+      els.modalBackdrop.classList.add('hidden');
+      els.modalBackdrop.classList.remove('flex');
+    }
+
+    function saveEdit() {
+      const t = state.tasks.find(x => x.id === editingTaskId);
+      if (!t) return;
+
+      const newTitle = String(els.editTitle.value ?? '').trim();
+      const newReward = clampInt(Number(els.editReward.value));
+      if (!newTitle) {
+        showToast('Название не может быть пустым.');
+        return;
+      }
+      if (newReward < 0) {
+        showToast('Награда не может быть отрицательной.');
+        return;
+      }
+
+      // If task is done and reward changed, adjust points by difference to keep consistency
+      if (t.done) {
+        const diff = newReward - t.reward;
+        if (diff !== 0) addPoints(diff);
+      }
+
+      t.title = newTitle;
+      t.reward = newReward;
+      t.type = els.editType.value || 'single';
+      saveState();
+      renderAll();
+      closeModal();
+      showToast('Изменения сохранены.');
+    }
+
+    function clearDone() {
+      const doneCount = state.tasks.filter(t => t.done).length;
+      if (doneCount === 0) {
+        showToast('Нет выполненных задач.');
+        return;
+      }
+
+      if (settings.confirmDelete) {
+        const ok = confirm(`Удалить выполненные задачи (${doneCount})? Баланс поинтов не изменится.`);
+        if (!ok) return;
+      }
+
+      state.tasks = state.tasks.filter(t => !t.done);
+      saveState();
+      renderAll();
+      showToast('Выполненные удалены.');
+    }
+
+    function resetAll() {
+      const ok = confirm('Сбросить все задачи, товары в магазине и поинты?');
+      if (!ok) return;
+      state = { points: 0, lastBalanceChangedAt: Date.now(), tasks: [], shopItems: [] };
+      saveState();
+      renderAll();
+      showToast('Сброшено.');
+    }
+
+    function exportJson() {
+      const payload = { ...state, settings };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'todo-points-export.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Экспортирован JSON.');
+    }
+
+    async function importJsonFile(file) {
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (typeof parsed?.points !== 'number' || !Array.isArray(parsed?.tasks)) {
+          showToast('Неверный формат файла.');
+          return;
+        }
+
+        const next = {
+          points: sanitizePointsValue(parsed.points),
+          lastBalanceChangedAt: parsed.lastBalanceChangedAt ? clampInt(Number(parsed.lastBalanceChangedAt)) : Date.now(),
+          tasks: parsed.tasks
+            .filter(t => t && typeof t.id === 'string')
+            .map(t => ({
+              id: String(t.id),
+              title: String(t.title ?? ''),
+              reward: clampInt(Number(t.reward ?? 0)),
+              type: String(t.type ?? 'single'),
+              done: Boolean(t.done),
+              createdAt: clampInt(Number(t.createdAt ?? Date.now())),
+              lastCompletedAt: t.lastCompletedAt ? clampInt(Number(t.lastCompletedAt)) : null
+            })),
+          shopItems: Array.isArray(parsed.shopItems) ? parsed.shopItems : []
+        };
+
+        const nextSettings = parsed.settings && typeof parsed.settings === 'object' ? parsed.settings : null;
+
+        const ok = confirm(`Импортировать данные? Заменит текущие (задач: ${next.tasks.length}, поинты: ${next.points}, товаров: ${next.shopItems.length}).`);
+        if (!ok) return;
+
+        state = next;
+        saveState();
+
+        if (nextSettings) {
+          settings = { ...defaultSettings, ...nextSettings, pointsUnit: sanitizeUnit(nextSettings.pointsUnit), volume: clamp01(nextSettings.volume) };
+          saveSettings();
+          syncSettingsUI();
+          applySettings();
+        }
+
+        renderAll();
+        showToast('Импорт завершён.');
+      } catch (e) {
+        console.warn(e);
+        showToast('Не удалось импортировать JSON.');
+      } finally {
+        els.importFile.value = '';
+      }
+    }
+
+    // === Settings UI ===
+    function syncSettingsUI() {
+      els.settingsAppTitle.value = settings.appTitle;
+      els.settingsAccent.value = settings.accent;
+      els.settingsBg.value = settings.bg;
+      els.settingsBgStyle.value = settings.bgStyle;
+      els.settingsRadius.value = settings.radius;
+      els.settingsDensity.value = settings.density;
+      els.settingsFont.value = settings.font;
+      els.settingsFontSize.value = String(settings.fontSize || 100);
+      document.getElementById('fontSizePct').textContent = String(settings.fontSize || 100);
+      els.settingsUnit.value = settings.pointsUnit;
+      els.settingsShowStats.checked = Boolean(settings.showStats);
+      els.settingsShowTips.checked = Boolean(settings.showTipsBlock);
+      els.settingsAllowNegative.checked = Boolean(settings.allowNegative);
+      els.settingsVibrate.checked = Boolean(settings.vibrate);
+      els.settingsSoundsEnabled.checked = Boolean(settings.soundsEnabled);
+      els.settingsVolume.value = String(clamp01(settings.volume));
+      els.settingsConfirmBuy.checked = Boolean(settings.confirmBuy);
+      els.settingsConfirmDelete.checked = Boolean(settings.confirmDelete);
+
+      const pct = Math.round(clamp01(settings.volume) * 100);
+      document.getElementById('volumePct').textContent = String(pct);
+
+      // Text stroke settings
+      const textStrokeCheckbox = document.getElementById('settingsTextStroke');
+      const strokeColorInput = document.getElementById('settingsStrokeColor');
+      const strokeWidthInput = document.getElementById('settingsStrokeWidth');
+      const strokeWidthValue = document.getElementById('strokeWidthValue');
+      const textStrokeOptions = document.getElementById('textStrokeOptions');
+
+      if (textStrokeCheckbox) textStrokeCheckbox.checked = Boolean(settings.textStroke);
+      if (strokeColorInput) strokeColorInput.value = settings.strokeColor || '#000000';
+      if (strokeWidthInput) strokeWidthInput.value = String(settings.strokeWidth || 1);
+      if (strokeWidthValue) strokeWidthValue.textContent = (settings.strokeWidth || 1) + 'px';
+      if (textStrokeOptions) textStrokeOptions.classList.toggle('hidden', !settings.textStroke);
+    }
+
+    function bindSettingsEvents() {
+      const commit = (patch) => {
+        settings = { ...settings, ...patch };
+        // sanitize
+        settings.pointsUnit = sanitizeUnit(settings.pointsUnit);
+        settings.volume = clamp01(settings.volume);
+        saveSettings();
+        applySettings();
+        renderAll();
+      };
+
+      els.settingsAppTitle.addEventListener('input', () => commit({ appTitle: els.settingsAppTitle.value }));
+      els.settingsAccent.addEventListener('input', () => commit({ accent: els.settingsAccent.value }));
+      els.settingsBg.addEventListener('input', () => commit({ bg: els.settingsBg.value, bg2: els.settingsBg.value }));
+      els.settingsBgStyle.addEventListener('change', () => commit({ bgStyle: els.settingsBgStyle.value }));
+      els.settingsRadius.addEventListener('change', () => commit({ radius: els.settingsRadius.value }));
+      els.settingsDensity.addEventListener('change', () => commit({ density: els.settingsDensity.value }));
+      els.settingsFont.addEventListener('change', () => {
+        commit({ font: els.settingsFont.value });
+        updateFontUI();
+        if (settings.font === 'custom') {
+          applyCustomFont();
+        }
+      });
+      els.settingsFontSize.addEventListener('input', () => {
+        const size = Math.max(75, Math.min(150, Number(els.settingsFontSize.value) || 100));
+        commit({ fontSize: size });
+      });
+      els.settingsUnit.addEventListener('input', () => commit({ pointsUnit: els.settingsUnit.value }));
+      els.settingsShowStats.addEventListener('change', () => commit({ showStats: els.settingsShowStats.checked }));
+      els.settingsShowTips.addEventListener('change', () => commit({ showTipsBlock: els.settingsShowTips.checked }));
+      els.settingsAllowNegative.addEventListener('change', () => {
+        commit({ allowNegative: els.settingsAllowNegative.checked });
+        // re-sanitize current points
+        state.points = sanitizePointsValue(state.points);
+        saveState();
+        renderAll();
+      });
+      els.settingsVibrate.addEventListener('change', () => commit({ vibrate: els.settingsVibrate.checked }));
+      els.settingsSoundsEnabled.addEventListener('change', () => commit({ soundsEnabled: els.settingsSoundsEnabled.checked }));
+      els.settingsVolume.addEventListener('input', () => commit({ volume: els.settingsVolume.value }));
+      els.settingsConfirmBuy.addEventListener('change', () => commit({ confirmBuy: els.settingsConfirmBuy.checked }));
+      els.settingsConfirmDelete.addEventListener('change', () => commit({ confirmDelete: els.settingsConfirmDelete.checked }));
+
+      els.resetSettingsBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        settings = { ...defaultSettings };
+        saveSettings();
+        syncSettingsUI();
+        applySettings();
+        renderAll();
+        showToast('Настройки сброшены.');
+      });
+
+      // Text stroke events
+      const textStrokeCheckbox = document.getElementById('settingsTextStroke');
+      const strokeColorInput = document.getElementById('settingsStrokeColor');
+      const strokeWidthInput = document.getElementById('settingsStrokeWidth');
+
+      if (textStrokeCheckbox) {
+        textStrokeCheckbox.addEventListener('change', () => {
+          commit({ textStroke: textStrokeCheckbox.checked });
+        });
+      }
+
+      if (strokeColorInput) {
+        strokeColorInput.addEventListener('input', () => {
+          commit({ strokeColor: strokeColorInput.value });
+        });
+      }
+
+      if (strokeWidthInput) {
+        strokeWidthInput.addEventListener('input', () => {
+          const width = Math.max(0.5, Math.min(3, Number(strokeWidthInput.value) || 1));
+          commit({ strokeWidth: width });
+        });
+      }
+    }
+
+    // Tabs
+    els.tabTasks.addEventListener('click', () => switchTab('tasks'));
+    els.tabShop.addEventListener('click', () => switchTab('shop'));
+    els.tabSettings.addEventListener('click', () => switchTab('settings'));
+
+    // Shop Form
+    els.addShopItemForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      addShopItem(els.shopItemTitle.value, els.shopItemPrice.value, els.shopItemType.value);
+      els.shopItemTitle.value = '';
+      els.shopItemPrice.value = '';
+      els.shopItemTitle.focus();
+    });
+
+    // Events
+    els.addForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      addTask(els.taskTitle.value, els.taskReward.value, els.taskType.value);
+      els.taskTitle.value = '';
+      els.taskReward.value = '10';
+      els.taskTitle.focus();
+    });
+
+    els.setPointsBtn.addEventListener('click', () => {
+      setPoints(els.pointsInput.value);
+      showToast('Баланс обновлён.');
+    });
+
+    els.pointsInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        setPoints(els.pointsInput.value);
+        showToast('Баланс обновлён.');
+      }
+    });
+
+    els.incPointsBtn.addEventListener('click', () => { addPoints(1); renderAll(); });
+    els.decPointsBtn.addEventListener('click', () => { addPoints(-1); renderAll(); });
+
+    els.filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFilter = btn.dataset.filter || 'all';
+        renderAll();
+      });
+    });
+
+    els.clearDoneBtn.addEventListener('click', clearDone);
+    els.resetBtn.addEventListener('click', resetAll);
+
+    // modal events
+    els.closeModalBtn.addEventListener('click', closeModal);
+    els.modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === els.modalBackdrop) closeModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !els.modalBackdrop.classList.contains('hidden')) closeModal();
+    });
+
+    els.editForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      saveEdit();
+    });
+
+    els.deleteFromModalBtn.addEventListener('click', () => {
+      if (!editingTaskId) return;
+      deleteTask(editingTaskId);
+    });
+
+    // import/export
+    els.exportBtn.addEventListener('click', exportJson);
+    els.importBtn.addEventListener('click', () => els.importFile.click());
+    els.importFile.addEventListener('change', () => {
+      const f = els.importFile.files?.[0];
+      if (f) importJsonFile(f);
+    });
+
+    // Sound settings events
+    els.previewSoundBtn.addEventListener('click', () => { playSuccessSound(); });
+    els.uploadSoundBtn.addEventListener('click', () => { els.soundFile.click(); });
+    els.soundFile.addEventListener('change', () => {
+      const f = els.soundFile.files?.[0];
+      if (f) handleSoundFileUpload(f);
+      els.soundFile.value = '';
+    });
+    els.resetSoundBtn.addEventListener('click', resetCustomSound);
+
+    els.previewShopSoundBtn.addEventListener('click', () => { playShopSuccessSound(); });
+    els.uploadShopSoundBtn.addEventListener('click', () => { els.shopSoundFile.click(); });
+    els.shopSoundFile.addEventListener('change', () => {
+      const f = els.shopSoundFile.files?.[0];
+      if (f) handleSoundFileUpload(f, true);
+      els.shopSoundFile.value = '';
+    });
+    els.resetShopSoundBtn.addEventListener('click', resetShopSound);
+
+    // Custom font events
+    const uploadFontBtn = document.getElementById('uploadFontBtn');
+    const resetFontBtn = document.getElementById('resetFontBtn');
+    const fontFile = document.getElementById('fontFile');
+    const previewFontBtn = document.getElementById('previewFontBtn');
+
+    if (uploadFontBtn && fontFile) {
+      uploadFontBtn.addEventListener('click', () => {
+        fontFile.click();
+      });
+    }
+
+    if (fontFile) {
+      fontFile.addEventListener('change', (e) => {
+        const f = e.target.files?.[0];
+        if (f) handleFontFileUpload(f);
+        e.target.value = '';
+      });
+    }
+
+    if (resetFontBtn) {
+      resetFontBtn.addEventListener('click', resetCustomFont);
+    }
+
+    if (previewFontBtn) {
+      previewFontBtn.addEventListener('click', () => {
+        showToast('Пример текста: Привет, мир! 123');
+      });
+    }
+
+    // Background image events
+    if (els.uploadBgImageBtn && els.bgImageFile) {
+      els.uploadBgImageBtn.addEventListener('click', () => {
+        els.bgImageFile.click();
+      });
+    }
+
+    if (els.bgImageFile) {
+      els.bgImageFile.addEventListener('change', (e) => {
+        const f = e.target.files?.[0];
+        if (f) handleBgImageUpload(f);
+        e.target.value = '';
+      });
+    }
+
+    if (els.resetBgImageBtn) {
+      els.resetBgImageBtn.addEventListener('click', resetBgImage);
+    }
+
+    if (els.settingsBgDim) {
+      els.settingsBgDim.addEventListener('input', (e) => {
+        bgImageSettings.dim = clamp01(e.target.value);
+        saveBgImageSettings();
+        applyBgImage();
+        syncBgImageUI();
+      });
+    }
+
+    if (els.settingsBgBlur) {
+      els.settingsBgBlur.addEventListener('input', (e) => {
+        bgImageSettings.blur = Math.max(0, Math.min(20, Number(e.target.value) || 0));
+        saveBgImageSettings();
+        applyBgImage();
+        syncBgImageUI();
+      });
+    }
+
+    // Tips Toggle Logic
+    let tipsVisible = localStorage.getItem('todoPoints.tipsVisible') !== 'false';
+
+    function updateTipsUI(animate = true) {
+      if (!animate) els.tipsContent.style.transition = 'none';
+      if (tipsVisible) {
+        els.tipsContent.style.maxHeight = '200px';
+        els.tipsContent.style.opacity = '1';
+        els.tipsContent.style.marginTop = '0.75rem';
+        els.tipsArrow.style.transform = 'rotate(0deg)';
+      } else {
+        els.tipsContent.style.maxHeight = '0';
+        els.tipsContent.style.opacity = '0';
+        els.tipsContent.style.marginTop = '0';
+        els.tipsArrow.style.transform = 'rotate(-90deg)';
+      }
+      if (!animate) {
+        els.tipsContent.offsetHeight;
+        els.tipsContent.style.transition = '';
+      }
+    }
+
+    els.tipsToggle.addEventListener('click', () => {
+      tipsVisible = !tipsVisible;
+      localStorage.setItem('todoPoints.tipsVisible', tipsVisible);
+      updateTipsUI();
+    });
+
+    // Init
+    loadSettings();
+    syncSettingsUI();
+    applySettings();
+    bindSettingsEvents();
+
+    loadCustomSound();
+    loadCustomFont();
+    loadBgImage();
+    loadState();
+    renderAll();
+    updateTipsUI(false);
+
+    // restore last tab
+    try {
+      const lastTab = localStorage.getItem('todoPoints.lastTab');
+      if (lastTab === 'shop') switchTab('shop');
+      else if (lastTab === 'settings') switchTab('settings');
+      else switchTab('tasks');
+    } catch (e) {
+      switchTab('tasks');
+    }
+
+    // Register PWA Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(() => console.log('SW Registered'))
+          .catch(err => console.log('SW Registration Failed', err));
+      });
+    }
+  </script>
+</body>
+</html>
